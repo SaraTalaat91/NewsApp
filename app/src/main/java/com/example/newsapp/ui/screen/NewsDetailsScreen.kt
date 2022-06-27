@@ -11,9 +11,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -24,9 +26,11 @@ import com.example.newsapp.MockData
 import com.example.newsapp.MockData.getTimeAgo
 import com.example.newsapp.model.NewsData
 import com.example.newsapp.R
+import com.example.newsapp.network.dto.TopNewsArticle
+import com.skydoves.landscapist.coil.CoilImage
 
 @Composable
-fun NewsDetailsScreen(navController: NavController, scrollState: ScrollState, newsData: NewsData) {
+fun NewsDetailsScreen(navController: NavController, scrollState: ScrollState, article: TopNewsArticle) {
 
     Scaffold(topBar = { NewsDetailsAppBar { navController.popBackStack() } }) {
         Column(
@@ -37,40 +41,37 @@ fun NewsDetailsScreen(navController: NavController, scrollState: ScrollState, ne
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
-            Image(
-                painter = painterResource(id = newsData.image),
-                contentDescription = "",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp),
-                contentScale = ContentScale.Crop
+            CoilImage(
+                modifier = Modifier.fillMaxWidth().height(300.dp),
+                imageModel = article.urlToImage,
+                contentScale = ContentScale.Crop,
+                error = ImageBitmap.imageResource(R.drawable.breaking_news),
+                placeHolder = ImageBitmap.imageResource(R.drawable.breaking_news)
             )
-
             Row(
                 Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp, bottom = 8.dp)
             ) {
                 NewsDetailsInfoItem(
-                    text = newsData.author,
+                    text = article.author ?: "Unknown",
                     icon = Icons.Default.Edit,
                     modifier = Modifier.weight(0.5f)
                 )
                 NewsDetailsInfoItem(
-                    text = MockData.stringToDate(newsData.publishedAt)?.getTimeAgo() ?: "",
+                    text = MockData.stringToDate(article.publishedAt ?: "")?.getTimeAgo() ?: "",
                     icon = Icons.Default.DateRange,
                     modifier = Modifier.weight(0.5f)
                 )
             }
 
             Text(
-                text = newsData.title, fontWeight = FontWeight.SemiBold, modifier = Modifier
+                text = article.title ?: "", fontWeight = FontWeight.SemiBold, modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp)
             )
             Text(
-                text = newsData.description, modifier = Modifier
+                text = article.description ?: "", modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp, bottom = 16.dp)
             )
@@ -105,5 +106,5 @@ fun NewsDetailsInfoItem(text: String, icon: ImageVector, modifier: Modifier = Mo
 @Preview(showBackground = true)
 @Composable
 fun PreviewNewsDetails(){
-    NewsDetailsScreen(navController = rememberNavController(), scrollState = rememberScrollState(), newsData = MockData.topNewsList[0])
+    NewsDetailsScreen(navController = rememberNavController(), scrollState = rememberScrollState(), article = TopNewsArticle())
 }

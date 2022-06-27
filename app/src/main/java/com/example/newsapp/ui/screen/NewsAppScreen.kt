@@ -17,6 +17,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.newsapp.MockData
 import com.example.newsapp.model.BottomMenuItem
 import com.example.newsapp.model.Screen
+import com.example.newsapp.network.NewsManager
+import com.example.newsapp.network.dto.TopNewsArticle
 import com.example.newsapp.ui.screen.CategoriesScreen
 import com.example.newsapp.ui.screen.SourcesScreen
 
@@ -35,35 +37,47 @@ fun NewsAppScreen() {
 fun Navigation(
     navController: NavHostController,
     scrollState: ScrollState,
-    paddingValues: PaddingValues
+    paddingValues: PaddingValues,
+    newsManager: NewsManager = NewsManager()
 ) {
-    NavHost(navController = navController, startDestination = BottomMenuItem.TopNews.route, modifier = Modifier.padding(paddingValues)) {
-        bottomNavigation(navController)
+    val query by newsManager.searchQuery
+    NavHost(
+        navController = navController,
+        startDestination = BottomMenuItem.TopNews.route,
+        modifier = Modifier.padding(paddingValues)
+    ) {
+        bottomNavigation(navController, newsManager)
 
         composable(
-            "${Screen.NewsDetailsScreen.route}/{newsId}",
-            arguments = listOf(navArgument("newsId") { type = NavType.IntType })
+            "${Screen.NewsDetailsScreen.route}/{newsIndex}",
+            arguments = listOf(navArgument("newsIndex") { type = NavType.IntType })
         ) {
-            val id = it.arguments?.getInt("newsId") ?: 0
-            val newsData = MockData.getNewsDetails(id)
-            NewsDetailsScreen(navController = navController, scrollState, newsData)
+            val index = it.arguments?.getInt("newsIndex") ?: 0
+
+            val articlesToGetDetailsFrom =
+                if (query.isNotEmpty()) newsManager.searchedNewsResponse.value.articles
+                else newsManager.newsResponse.value.articles
+
+            articlesToGetDetailsFrom?.get(index)?.let { articleDetails ->
+                NewsDetailsScreen(navController = navController, scrollState, articleDetails)
+            }
         }
     }
 }
 
 
-fun NavGraphBuilder.bottomNavigation(navController: NavController) {
+fun NavGraphBuilder.bottomNavigation(navController: NavController, newsManager: NewsManager) {
 
     composable(BottomMenuItem.Categories.route) {
-        CategoriesScreen()
+        CategoriesScreen(newsManager)
     }
 
     composable(BottomMenuItem.TopNews.route) {
-        NewsListScreen(navController = navController)
+        NewsListScreen(navController = navController, newsManager)
     }
 
     composable(BottomMenuItem.Sources.route) {
-        SourcesScreen()
+        SourcesScreen(newsManager)
     }
 }
 
@@ -82,7 +96,7 @@ fun NewsAppBottomBar(navController: NavController) {
                 onClick = {
                     navController.navigate(item.route) {
                         navController.graph.startDestinationRoute?.let { route ->
-                            popUpTo(route){
+                            popUpTo(route) {
                                 saveState = true
                             }
                         }
