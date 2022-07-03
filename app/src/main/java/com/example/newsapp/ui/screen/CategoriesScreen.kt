@@ -11,6 +11,9 @@ import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -25,14 +28,24 @@ import com.example.newsapp.MockData.getTimeAgo
 import com.example.newsapp.MockData.stringToDate
 import com.example.newsapp.R
 import com.example.newsapp.model.Category
-import com.example.newsapp.network.NewsManager
 import com.example.newsapp.network.dto.TopNewsArticle
+import com.example.newsapp.ui.NewsViewModel
+import com.example.newsapp.ui.components.ErrorUI
+import com.example.newsapp.ui.components.LoadingUI
 import com.skydoves.landscapist.coil.CoilImage
 
 @Composable
-fun CategoriesScreen(newsManager: NewsManager) {
-    val selectedCategory = newsManager.selectedCategory.value
-    val articlesByCategory = newsManager.articlesByCategory.value.articles
+fun CategoriesScreen(newsViewModel: NewsViewModel) {
+    val selectedCategory by newsViewModel.selectedCategory.collectAsState()
+    val articlesByCategory by newsViewModel.articlesByCategory.collectAsState()
+    val articles = articlesByCategory.articles
+
+    val isLoading by newsViewModel.isLoading.collectAsState()
+    val isError by newsViewModel.isError.collectAsState()
+
+    LaunchedEffect(key1 = "categories", block = {
+        newsViewModel.setCategory("business")
+    })
 
     Column(
         modifier = Modifier
@@ -43,16 +56,20 @@ fun CategoriesScreen(newsManager: NewsManager) {
                 CategoryTab(
                     categoryName = it.categoryName,
                     selected = it.categoryName == selectedCategory?.categoryName,
-                    onFetchCategory = { name -> newsManager.setCategory(categoryName = name) }
+                    onFetchCategory = { name -> newsViewModel.setCategory(categoryName = name) }
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        LazyColumn {
-            items(articlesByCategory ?: emptyList()) {
-                CategoryCard(article = it)
+        when {
+            isLoading -> LoadingUI()
+            isError -> ErrorUI()
+            else -> LazyColumn {
+                items(articles ?: emptyList()) {
+                    CategoryCard(article = it)
+                }
             }
         }
     }

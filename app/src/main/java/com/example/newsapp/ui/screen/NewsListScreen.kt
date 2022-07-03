@@ -1,5 +1,6 @@
 package com.example.newsapp.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,50 +12,60 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.newsapp.MockData.getTimeAgo
 import com.example.newsapp.MockData.stringToDate
-import com.example.newsapp.network.NewsManager
-import com.example.newsapp.network.dto.TopNewsArticle
-import com.skydoves.landscapist.coil.CoilImage
-
 import com.example.newsapp.R
+import com.example.newsapp.network.dto.TopNewsArticle
+import com.example.newsapp.ui.NewsViewModel
+import com.skydoves.landscapist.coil.CoilImage
 
 @Composable
 fun NewsListScreen(
     navController: NavController,
-    newsManager: NewsManager
+    newsViewModel: NewsViewModel
 ) {
 
-    val searchQuery by newsManager.searchQuery
+    val searchQuery by newsViewModel.searchQuery.collectAsState()
+    val isLoading by newsViewModel.isLoading.collectAsState()
+    val isError by newsViewModel.isError.collectAsState()
 
     val articles = if (searchQuery.isEmpty()) {
-        newsManager.newsResponse.value.articles
+        newsViewModel.newsResponse.collectAsState().value.articles
     } else {
-        newsManager.searchedNewsResponse.value.articles
+        newsViewModel.searchedNewsResponse.collectAsState().value.articles
     }
 
     Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-        SearchBar(newsManager = newsManager)
+        SearchBar(newsViewModel = newsViewModel)
 
-        LazyColumn {
-            itemsIndexed(articles ?: emptyList()) { index, article ->
-                NewsCard(article) {
-                    navController.navigate("NewsDetails/$index")
+        when {
+            isLoading -> LoadingUI()
+            isError -> ErrorUI()
+            else -> LazyColumn {
+                itemsIndexed(articles ?: emptyList()) { index, article ->
+                    NewsCard(article) {
+                        navController.navigate("NewsDetails/$index")
+                    }
                 }
             }
         }
@@ -62,8 +73,8 @@ fun NewsListScreen(
 }
 
 @Composable
-fun SearchBar(newsManager: NewsManager) {
-    val query by newsManager.searchQuery
+fun SearchBar(newsViewModel: NewsViewModel) {
+    val query by newsViewModel.searchQuery.collectAsState()
     val focusManager = LocalFocusManager.current
 
     Card(
@@ -76,7 +87,7 @@ fun SearchBar(newsManager: NewsManager) {
         TextField(
             modifier = Modifier.fillMaxWidth(),
             value = query,
-            onValueChange = { newsManager.searchQuery.value = it },
+            onValueChange = { newsViewModel.searchQuery.value = it },
             label = { Text(text = "Search", color = Color.White) },
             textStyle = TextStyle(color = Color.White, fontSize = 18.sp),
             keyboardOptions = KeyboardOptions(
@@ -84,7 +95,7 @@ fun SearchBar(newsManager: NewsManager) {
                 imeAction = ImeAction.Search
             ),
             keyboardActions = KeyboardActions(onSearch = {
-                newsManager.getSearchedArticles()
+                newsViewModel.getSearchedArticles()
                 focusManager.clearFocus()
             }),
             leadingIcon = {
@@ -96,7 +107,7 @@ fun SearchBar(newsManager: NewsManager) {
             },
             trailingIcon = {
                 IconButton(onClick = {
-                    newsManager.resetQuery()
+                    newsViewModel.resetQuery()
                 }) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -131,13 +142,33 @@ fun NewsCard(article: TopNewsArticle, modifier: Modifier = Modifier, clickEvent:
                 text = stringToDate(article.publishedAt ?: "")?.getTimeAgo() ?: "",
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                colorResource(id = R.color.black_transparent),
+                                Color.Transparent
+                            )
+                        )
+                    )
+                    .padding(8.dp),
+                textAlign = TextAlign.Start
             )
             Text(
                 text = article.title ?: "",
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(8.dp)
+                modifier = Modifier
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                colorResource(id = R.color.black_transparent)
+                            )
+                        )
+                    )
+                    .padding(8.dp)
             )
         }
     }

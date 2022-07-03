@@ -1,6 +1,5 @@
 package com.example.newsapp.ui.screen
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,35 +7,34 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.More
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.example.newsapp.R
-import com.example.newsapp.network.NewsManager
 import com.example.newsapp.network.dto.TopNewsArticle
+import com.example.newsapp.ui.NewsViewModel
+import com.example.newsapp.ui.components.ErrorUI
+import com.example.newsapp.ui.components.LoadingUI
 
 @Composable
-fun SourcesScreen(newsManager: NewsManager) {
-    Scaffold(topBar = { SourcesTopBar(newsManager) }) {
-        SourcesContent(newsManager, it)
+fun SourcesScreen(newsViewModel: NewsViewModel) {
+    Scaffold(topBar = { SourcesTopBar(newsViewModel) }) {
+        SourcesContent(newsViewModel, it)
     }
 }
 
 @Composable
-fun SourcesTopBar(newsManager: NewsManager) {
+fun SourcesTopBar(newsViewModel: NewsViewModel) {
 
     val items = listOf(
         "TechCrunch" to "techcrunch",
@@ -49,42 +47,56 @@ fun SourcesTopBar(newsManager: NewsManager) {
 
     var expanded by remember { mutableStateOf(false) }
 
-    TopAppBar(title = { Text(text = "${newsManager.sourceName.value} Source") }, actions = {
-        IconButton(onClick = { expanded = true }) {
-            Icon(imageVector = Icons.Default.MoreVert, contentDescription = "")
-        }
+    TopAppBar(
+        title = { Text(text = "${newsViewModel.sourceName.collectAsState().value} Source") },
+        actions = {
+            IconButton(onClick = { expanded = true }) {
+                Icon(imageVector = Icons.Default.MoreVert, contentDescription = "")
+            }
 
-        MaterialTheme(
-            shapes = MaterialTheme.shapes.copy(
-                medium = RoundedCornerShape(
-                    16.dp
+            MaterialTheme(
+                shapes = MaterialTheme.shapes.copy(
+                    medium = RoundedCornerShape(
+                        16.dp
+                    )
                 )
-            )
-        ) {
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                items.forEach {
-                    DropdownMenuItem(onClick = {
-                        newsManager.sourceName.value  = it.second
-                        expanded = false
-                    }) {
-                        Text(
-                            text = it.first,
-                        )
+            ) {
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    items.forEach {
+                        DropdownMenuItem(onClick = {
+                            newsViewModel.sourceName.value = it.second
+                            newsViewModel.getArticlesBySource()
+                            expanded = false
+                        }) {
+                            Text(
+                                text = it.first,
+                            )
+                        }
                     }
                 }
             }
-        }
-    })
+        })
 }
 
 @Composable
-fun SourcesContent(newsManager: NewsManager, paddingValues: PaddingValues) {
-    newsManager.getArticlesBySource()
-    val articles = newsManager.articlesBySource.value.articles
+fun SourcesContent(newsViewModel: NewsViewModel, paddingValues: PaddingValues) {
+    val articlesBySource by newsViewModel.articlesBySource.collectAsState()
+    val articles = articlesBySource.articles
 
-    LazyColumn(modifier = Modifier.padding(paddingValues)) {
-        items(articles ?: mutableListOf()) { article ->
-            SourceItem(article)
+    val isLoading by newsViewModel.isLoading.collectAsState()
+    val isError by newsViewModel.isError.collectAsState()
+
+    LaunchedEffect(key1 = "source", block = {
+        newsViewModel.getArticlesBySource()
+    })
+
+    when {
+        isLoading -> LoadingUI()
+        isError -> ErrorUI()
+        else -> LazyColumn(modifier = Modifier.padding(paddingValues)) {
+            items(articles ?: mutableListOf()) { article ->
+                SourceItem(article)
+            }
         }
     }
 }
